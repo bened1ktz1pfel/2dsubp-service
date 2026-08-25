@@ -25,11 +25,10 @@ Notation (matching the paper):
 
 Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 """
+from dataclasses import dataclass
 
 import gurobipy as gp
 from gurobipy import GRB
-from dataclasses import dataclass
-from typing import Dict, List, Set
 
 
 @dataclass
@@ -37,15 +36,15 @@ class Instance:
     n_items: int
     n_elements: int
     n_layers: int
-    w: List[float]
-    h: List[float]
+    w: list[float]
+    h: list[float]
     W: float
     H: float
-    p: List[float]
-    s: List[float]
-    c: List[float]
+    p: list[float]
+    s: list[float]
+    c: list[float]
     Q: float
-    E_il: List[List[Set[int]]]
+    E_il: list[list[set[int]]]
     n_batches: int = None
 
     def __post_init__(self):
@@ -192,7 +191,7 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
     return m
 
 
-def extract_solution(m: gp.Model, inst: Instance) -> Dict:
+def extract_solution(m: gp.Model, inst: Instance) -> dict:
     x = m._vars["x"]; z = m._vars["z"]; P = m._vars["P"]
     X = m._vars["X"]; Y = m._vars["Y"]
     batches = []
