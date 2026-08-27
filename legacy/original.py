@@ -25,6 +25,7 @@ Notation (matching the paper):
 
 Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 """
+
 from dataclasses import dataclass
 
 import gurobipy as gp
@@ -52,8 +53,9 @@ class Instance:
             self.n_batches = self.n_items
 
 
-def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
-                       verbose: bool = True) -> gp.Model:
+def build_gurobi_model(
+    inst: Instance, time_limit: float = 300.0, verbose: bool = True
+) -> gp.Model:
     I = range(inst.n_items)
     B = range(inst.n_batches)
     E = range(inst.n_elements)
@@ -66,16 +68,16 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
     M_geo = max(inst.W, inst.H) + max(max(inst.w), max(inst.h))
 
     # Variables
-    x  = m.addVars(I, B, vtype=GRB.BINARY, name="x")
-    z  = m.addVars(B,    vtype=GRB.BINARY, name="z")
-    y  = m.addVars(E, L, B, vtype=GRB.BINARY, name="y")
-    v  = m.addVars(E, L, B, vtype=GRB.BINARY, name="d")
-    u  = m.addVars(E, B, vtype=GRB.BINARY, name="u")
-    u0 = m.addVars(E,    vtype=GRB.BINARY, name="u0")
-    P  = m.addVars(B,    lb=0.0, name="P")
+    x = m.addVars(I, B, vtype=GRB.BINARY, name="x")
+    z = m.addVars(B, vtype=GRB.BINARY, name="z")
+    y = m.addVars(E, L, B, vtype=GRB.BINARY, name="y")
+    v = m.addVars(E, L, B, vtype=GRB.BINARY, name="d")
+    u = m.addVars(E, B, vtype=GRB.BINARY, name="u")
+    u0 = m.addVars(E, vtype=GRB.BINARY, name="u0")
+    P = m.addVars(B, lb=0.0, name="P")
 
-    X  = m.addVars(I,    lb=0.0, name="X")
-    Y  = m.addVars(I,    lb=0.0, name="Y")
+    X = m.addVars(I, lb=0.0, name="X")
+    Y = m.addVars(I, lb=0.0, name="Y")
     a_lr = m.addVars(I, I, vtype=GRB.BINARY, name="a")
     b_bl = m.addVars(I, I, vtype=GRB.BINARY, name="b")
 
@@ -86,8 +88,9 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
     m.addConstrs((x[i, b] <= z[b] for i in I for b in B), name="used_batch")
 
     # (4) empty batch must not be "used"
-    m.addConstrs((z[b] <= gp.quicksum(x[i, b] for i in I) for b in B),
-                 name="nonempty_if_used")
+    m.addConstrs(
+        (z[b] <= gp.quicksum(x[i, b] for i in I) for b in B), name="nonempty_if_used"
+    )
 
     # (5) element required if item assigned
     for i in I:
@@ -98,21 +101,30 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
 
     # (6) weight capacity per layer
     m.addConstrs(
-        (gp.quicksum(inst.c[e] * y[e, l, b] for e in E) <= inst.Q * z[b]
-         for b in B for l in L),
+        (
+            gp.quicksum(inst.c[e] * y[e, l, b] for e in E) <= inst.Q * z[b]
+            for b in B
+            for l in L
+        ),
         name="capacity",
     )
 
-     # (7), (8): inter-batch setup
+    # (7), (8): inter-batch setup
     for e in E:
         for b in range(1, inst.n_batches):
             for l in L:
-                m.addConstr(u[e, b] >= y[e, l, b]
-                            - gp.quicksum(y[e, lp, b - 1] for lp in L)
-                            - (1 - z[b]))
-                m.addConstr(u[e, b] >= y[e, l, b - 1]
-                            - gp.quicksum(y[e, lp, b] for lp in L)
-                            - (1 - z[b]))
+                m.addConstr(
+                    u[e, b]
+                    >= y[e, l, b]
+                    - gp.quicksum(y[e, lp, b - 1] for lp in L)
+                    - (1 - z[b])
+                )
+                m.addConstr(
+                    u[e, b]
+                    >= y[e, l, b - 1]
+                    - gp.quicksum(y[e, lp, b] for lp in L)
+                    - (1 - z[b])
+                )
 
     # (9): initial setup
     for e in E:
@@ -130,12 +142,12 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
         for l in range(1, inst.n_layers):
             for b in B:
                 m.addConstr(v[e, l, b] <= y[e, l, b])
-    
+
     # (12): There is only one connecting element between layers l-1 and l
     for l in range(1, inst.n_layers):
         for b in B:
             m.addConstr(gp.quicksum(v[e, l, b] for e in E) <= 1)
-    
+
     # (13): if element is connecting in l-1 and l, then there can not be another element in l
     for l in range(1, inst.n_layers - 1):
         for b in B:
@@ -147,12 +159,12 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
     # (14) processing time
     for b in B:
         m.addConstr(
-            P[b] == gp.quicksum(inst.p[i] * x[i, b] for i in I)
-                  + 2 * gp.quicksum(y[e, l, b] for e in E for l in L)
-                  - 2 * gp.quicksum(v[e, l, b] for e in E for l in range(1, inst.n_layers)),
-            name=f"P_{b}"
+            P[b]
+            == gp.quicksum(inst.p[i] * x[i, b] for i in I)
+            + 2 * gp.quicksum(y[e, l, b] for e in E for l in L)
+            - 2 * gp.quicksum(v[e, l, b] for e in E for l in range(1, inst.n_layers)),
+            name=f"P_{b}",
         )
-  
 
     # (15), (16): plate bounds (every item is placed by (4))
     for i in I:
@@ -179,12 +191,13 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
                 )
 
     # symmetry breaking: use batches in order
-    m.addConstrs((z[b] >= z[b + 1] for b in range(inst.n_batches - 1)),
-                 name="batch_order")
-    
-    setup_cost = (gp.quicksum(inst.s[e] * u0[e] for e in E)
-                  + gp.quicksum(inst.s[e] * u[e, b]
-                                for e in E for b in range(1, inst.n_batches)))
+    m.addConstrs(
+        (z[b] >= z[b + 1] for b in range(inst.n_batches - 1)), name="batch_order"
+    )
+
+    setup_cost = gp.quicksum(inst.s[e] * u0[e] for e in E) + gp.quicksum(
+        inst.s[e] * u[e, b] for e in E for b in range(1, inst.n_batches)
+    )
     m.setObjective(gp.quicksum(P[b] for b in B) + setup_cost, GRB.MINIMIZE)
 
     m._vars = dict(x=x, z=z, y=y, P=P, u=u, u0=u0, X=X, Y=Y)
@@ -192,30 +205,40 @@ def build_gurobi_model(inst: Instance, time_limit: float = 300.0,
 
 
 def extract_solution(m: gp.Model, inst: Instance) -> dict:
-    x = m._vars["x"]; z = m._vars["z"]; P = m._vars["P"]
-    X = m._vars["X"]; Y = m._vars["Y"]
+    x = m._vars["x"]
+    z = m._vars["z"]
+    P = m._vars["P"]
+    X = m._vars["X"]
+    Y = m._vars["Y"]
     batches = []
     for b in range(inst.n_batches):
         if z[b].X < 0.5:
             continue
         items = [i for i in range(inst.n_items) if x[i, b].X > 0.5]
-        batches.append({
-            "batch": b,
-            "items": items,
-            "processing_time": P[b].X,
-            "placement": {i: (X[i].X, Y[i].X) for i in items},
-        })
-    return {"objective": m.ObjVal, "batches": batches,
-            "gap": m.MIPGap, "runtime": m.Runtime}
+        batches.append(
+            {
+                "batch": b,
+                "items": items,
+                "processing_time": P[b].X,
+                "placement": {i: (X[i].X, Y[i].X) for i in items},
+            }
+        )
+    return {
+        "objective": m.ObjVal,
+        "batches": batches,
+        "gap": m.MIPGap,
+        "runtime": m.Runtime,
+    }
 
 
 def demo_instance() -> Instance:
     return Instance(
         n_items=15,
-        n_elements=4,           # e.g. 4 different filament colors / materials
-        n_layers=10,             # 10 print layers
+        n_elements=4,  # e.g. 4 different filament colors / materials
+        n_layers=10,  # 10 print layers
         # geometry: build plate 10 x 10
-        W=10, H=10,
+        W=10,
+        H=10,
         w=[4, 3, 5, 2, 6, 3, 4, 2, 5, 3, 4, 3, 5, 2, 6],
         h=[3, 4, 4, 2, 5, 3, 3, 2, 4, 5, 3, 4, 2, 3, 5],
         # processing time per item (volume-dependent)
@@ -230,35 +253,35 @@ def demo_instance() -> Instance:
         # layer-sharing), others switch between layers (no sharing bonus).
         E_il=[
             # item 0: uses {0} in every layer -> strong self-sharing
-            [{0},     {0, 1},     {0},     {0},     {0},    {0},     {0},     {0},     {0},     {0}],
+            [{0}, {0, 1}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}],
             # item 1: uses {1} then {1,2} then {2} -> partial sharing
-            [{1},     {1, 2},  {2},     {2},     {2},   {2},     {2},     {2},     {2},     {2}],
+            [{1}, {1, 2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}],
             # item 2: uses {0,2} in layers 0 and 1, then {2} -> sharing on 2
-            [{0, 2},  {0, 2},  {2},     {2},     {2},   {2},     {2},     {2},     {2},     {2}],
+            [{0, 2}, {0, 2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}],
             # item 3: small, uses only {3}
-            [{3},     {3},     {3},     {3},     {3},   {3},     {3},     {3},     {3},     {3}],
+            [{3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}],
             # item 4: large, uses {0,1} in layer 0, {1} later
-            [{0, 1},  {1},     {1, 2},     {1},     {1},   {1},     {1},     {1},     {1},     {1}],
+            [{0, 1}, {1}, {1, 2}, {1}, {1}, {1}, {1}, {1}, {1}, {1}],
             # item 5: uses {2,3} then {3} then {3}
-            [{2, 3},  {3},     {3},     {3},     {3}],
+            [{2, 3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}],
             # item 6: uses {0} then {0,3} then {3}
-            [{0},     {0, 3},  {3},     {3, 1},     {3}],
+            [{0}, {0, 3}, {3}, {3, 1}, {3}, {3, 1}, {3}, {3}, {3}, {3}],
             # item 7: small filler, uses {1}
-            [{1},     {1, 3},     {1},     {1},     {3}],
+            [{1}, {1, 3}, {1}, {1}, {3}, {1}, {1}, {1}, {1}, {1}],
             # item 8: uses {2} consistently
-            [{2},     {2},     {2, 3},     {2, 3},     {2, 3}],
+            [{2}, {2}, {2, 3}, {2, 3}, {2, 3}, {2}, {2}, {2}, {2}, {2}],
             # item 9: uses {3} then {2,3} then {2}
-            [{3},     {2, 3},  {2},     {0, 2, 3},     {2}],
+            [{3}, {2, 3}, {2}, {0, 2, 3}, {2}, {2}, {2}, {2}, {2}, {2}],
             # item 10: uses {0,1} then {1} then {1}
-            [{0, 1},  {1},     {1},     {1},     {1}],
+            [{0, 1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}],
             # item 11: uses {1,2} then {2} then {2}
-            [{1, 2},  {2},     {2},     {2},     {2}],
+            [{1, 2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}],
             # item 12: uses {0,3} then {3} then {3}
-            [{0, 3},  {3},     {3},     {3},     {3}],
+            [{0, 3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}, {3}],
             # item 13: uses {1} then {1,2} then {2}
-            [{1},     {1, 2},  {2},     {2},     {2}],
+            [{1}, {1, 2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}],
             # item 14: uses {2,3} then {3} then {3}
-            [{2, 3},  {3},     {3},     {3},     {0, 2,3}],
+            [{2, 3}, {3}, {3}, {3}, {0, 2, 3}, {3}, {3}, {3}, {3}, {3}, {3}],
         ],
         # upper bound on number of batches; 4 is generous for 10 items on a 10x10 plate
         n_batches=5,
@@ -276,7 +299,9 @@ if __name__ == "__main__":
         print("\n=== Solution ===")
         print(f"Objective: {sol['objective']:.2f}  (gap {sol['gap']*100:.1f}%)")
         for bat in sol["batches"]:
-            print(f" Batch {bat['batch']}: items={bat['items']} "
-                  f"P={bat['processing_time']:.2f}")
+            print(
+                f" Batch {bat['batch']}: items={bat['items']} "
+                f"P={bat['processing_time']:.2f}"
+            )
             for i, (xi, yi) in bat["placement"].items():
                 print(f"   item {i} at ({xi:.2f}, {yi:.2f})")
