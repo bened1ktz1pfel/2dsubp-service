@@ -55,18 +55,13 @@ class Instance:
             self.n_batches = self.n_items
 
 
-def build_gurobi_model(
-    inst: Instance, time_limit: float = 300.0, threads: int = 4, verbose: bool = True
-) -> gp.Model:
+def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
     I = range(inst.n_items)
     B = range(inst.n_batches)
     E = range(inst.n_elements)
     L = range(inst.n_layers)
 
     m = gp.Model("2D-BS-LMS")
-    m.Params.OutputFlag = 1 if verbose else 0
-    m.Params.TimeLimit = time_limit
-    m.Params.Threads = threads
 
     M_geo = max(inst.W, inst.H) + max(max(inst.w), max(inst.h))
 
@@ -325,9 +320,11 @@ def load_instance_from_json(json_file: str) -> Instance:
 def solve(
     inst: Instance, time_limit: float = 300.0, threads: int = 4, verbose: bool = False
 ) -> dict:
-    m = build_gurobi_model(
-        inst, time_limit=time_limit, threads=threads, verbose=verbose
-    )
+    m = build_gurobi_model(inst, verbose=verbose)
+    m.Params.OutputFlag = 1 if verbose else 0
+    m.Params.TimeLimit = time_limit
+    if threads > 0:
+        m.Params.Threads = threads
     m.optimize()
     if m.SolCount == 0:
         raise RuntimeError(f"No solution found (status {m.Status}).")
