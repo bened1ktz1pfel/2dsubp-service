@@ -26,6 +26,7 @@ Notation (matching the paper):
 Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 """
 
+import json
 from dataclasses import dataclass
 
 import gurobipy as gp
@@ -43,6 +44,7 @@ class Instance:
     H: float
     p: list[float]
     s: list[float]
+    s_s: list[float]
     c: list[float]
     Q: float
     E_il: list[list[set[int]]]
@@ -100,13 +102,18 @@ def build_gurobi_model(
                 for b in B:
                     m.addConstr(x[i, b] <= y[e, l, b], name=f"req_{i}_{e}_{l}_{b}")
 
-    # (6) weight capacity per layer
+    # Element e wird in Batch b verwendet (in mindestens einem Layer)
+    g = m.addVars(E, B, vtype=GRB.BINARY, name="g")
+
+    # Kopplung: wenn e in irgendeinem Layer von b benötigt wird, ist g[e,b] = 1
+    for e in E:
+        for l in L:
+            for b in B:
+                m.addConstr(y[e, l, b] <= g[e, b], name=f"elem_in_batch_{e}_{l}_{b}")
+
+    # (6) höchstens Q verschiedene Elemente pro Batch
     m.addConstrs(
-        (
-            gp.quicksum(inst.c[e] * y[e, l, b] for e in E) <= inst.Q * z[b]
-            for b in B
-            for l in L
-        ),
+        (gp.quicksum(g[e, b] for e in E) <= inst.Q * z[b] for b in B),
         name="capacity",
     )
 
@@ -162,8 +169,12 @@ def build_gurobi_model(
         m.addConstr(
             P[b]
             == gp.quicksum(inst.p[i] * x[i, b] for i in I)
-            + 2 * gp.quicksum(y[e, l, b] for e in E for l in L)
-            - 2 * gp.quicksum(v[e, l, b] for e in E for l in range(1, inst.n_layers)),
+            + inst.s_s[0]
+            * (
+                2 * gp.quicksum(y[e, l, b] for e in E for l in L)
+                - 2
+                * gp.quicksum(v[e, l, b] for e in E for l in range(1, inst.n_layers))
+            ),
             name=f"P_{b}",
         )
 
@@ -289,6 +300,28 @@ def demo_instance() -> Instance:
     )
 
 
+def load_instance_from_json(json_file: str) -> Instance:
+    with open(json_file, "r") as f:
+        data = json.load(f)
+
+    return Instance(
+        n_items=data["n_items"],
+        n_elements=data["n_elements"],
+        n_layers=data["n_layers"],
+        w=data["w"],
+        h=data["h"],
+        W=data["W"],
+        H=data["H"],
+        p=data["p"],
+        s=data["s_b"],
+        s_s=data["s_s"],
+        c=data["c"],
+        Q=data["Q"],
+        E_il=[[set(layer) for layer in item_layers] for item_layers in data["E_il"]],
+        n_batches=data.get("n_batches", None),
+    )
+
+
 def solve(
     inst: Instance, time_limit: float = 300.0, threads: int = 4, verbose: bool = False
 ) -> dict:
@@ -303,7 +336,10 @@ def solve(
 
 
 if __name__ == "__main__":
-    inst = demo_instance()
+    inst = load_instance_from_json("tests/sample_instance.json")
+    print(
+        f"Loaded instance with {inst.n_items} items, {inst.n_elements} elements, {inst.n_layers} layers."
+    )
 
     sol = solve(inst, time_limit=60.0, threads=4, verbose=True)
 
