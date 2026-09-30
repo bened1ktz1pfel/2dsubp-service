@@ -54,7 +54,7 @@ class Instance:
 
 
 def build_gurobi_model(
-    inst: Instance, time_limit: float = 300.0, verbose: bool = True
+    inst: Instance, time_limit: float = 300.0, threads: int = 4, verbose: bool = True
 ) -> gp.Model:
     I = range(inst.n_items)
     B = range(inst.n_batches)
@@ -64,6 +64,7 @@ def build_gurobi_model(
     m = gp.Model("2D-BS-LMS")
     m.Params.OutputFlag = 1 if verbose else 0
     m.Params.TimeLimit = time_limit
+    m.Params.Threads = threads
 
     M_geo = max(inst.W, inst.H) + max(max(inst.w), max(inst.h))
 
@@ -288,20 +289,32 @@ def demo_instance() -> Instance:
     )
 
 
+def solve(
+    inst: Instance, time_limit: float = 300.0, threads: int = 4, verbose: bool = False
+) -> dict:
+    m = build_gurobi_model(
+        inst, time_limit=time_limit, threads=threads, verbose=verbose
+    )
+    m.optimize()
+    if m.SolCount == 0:
+        raise RuntimeError(f"No solution found (status {m.Status}).")
+
+    return extract_solution(m, inst)
+
+
 if __name__ == "__main__":
     inst = demo_instance()
-    m = build_gurobi_model(inst, time_limit=60)
-    m.Params.Threads = 1
-    m.Params.TimeLimit = 300
-    m.optimize()
-    if m.SolCount > 0:
-        sol = extract_solution(m, inst)
-        print("\n=== Solution ===")
-        print(f"Objective: {sol['objective']:.2f}  (gap {sol['gap']*100:.1f}%)")
-        for bat in sol["batches"]:
-            print(
-                f" Batch {bat['batch']}: items={bat['items']} "
-                f"P={bat['processing_time']:.2f}"
-            )
-            for i, (xi, yi) in bat["placement"].items():
-                print(f"   item {i} at ({xi:.2f}, {yi:.2f})")
+
+    sol = solve(inst, time_limit=60.0, threads=4, verbose=True)
+
+    print(f"Objective: {sol['objective']:.2f}  (gap {sol['gap']*100:.1f}%)")
+
+    print("\n=== Solution ===")
+    print(f"Objective: {sol['objective']:.2f}  (gap {sol['gap']*100:.1f}%)")
+    for bat in sol["batches"]:
+        print(
+            f" Batch {bat['batch']}: items={bat['items']} "
+            f"P={bat['processing_time']:.2f}"
+        )
+        for i, (xi, yi) in bat["placement"].items():
+            print(f"   item {i} at ({xi:.2f}, {yi:.2f})")
