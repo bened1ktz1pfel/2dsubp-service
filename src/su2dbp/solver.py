@@ -31,7 +31,7 @@ import json
 import gurobipy as gp
 from gurobipy import GRB
 
-from su2dbp.models import Instance
+from su2dbp.models import Batch, Instance, Solution
 
 
 def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
@@ -191,31 +191,60 @@ def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
     return m
 
 
-def extract_solution(m: gp.Model, inst: Instance) -> dict:
+def extract_solution(m: gp.Model, inst: Instance) -> Solution:
     x = m._vars["x"]
     z = m._vars["z"]
     P = m._vars["P"]
     X = m._vars["X"]
     Y = m._vars["Y"]
-    batches = []
+    batches: list[Batch] = []
     for b in range(inst.n_batches):
         if z[b].X < 0.5:
             continue
         items = [i for i in range(inst.n_items) if x[i, b].X > 0.5]
         batches.append(
-            {
-                "batch": b,
-                "items": items,
-                "processing_time": P[b].X,
-                "placement": {i: (X[i].X, Y[i].X) for i in items},
-            }
+            Batch(
+                index=b,
+                items=tuple(sorted(items)),
+                elements=tuple(
+                    tuple({e for l in range(inst.n_layers) for e in inst.E_il[i][l]})
+                    for i in items
+                ),
+                processtime=P[b].X,
+                placements=tuple((i, X[i].X, Y[i].X) for i in items),
+            )
         )
-    return {
-        "objective": m.ObjVal,
-        "batches": batches,
-        "gap": m.MIPGap,
-        "runtime": m.Runtime,
+    return Solution(
+        objective_value=m.ObjVal,
+        objective_bound=m.ObjBound,
+        gap=m.MIPGap,
+        status=m.Status,
+        runtime=m.Runtime,
+        batches=tuple(batches),
+    )
+
+
+def write_solution_to_json(solution: Solution, filename: str) -> None:
+    """Write the solution to a JSON file."""
+    solution_dict = {
+        "objective_value": solution.objective_value,
+        "objective_bound": solution.objective_bound,
+        "gap": solution.gap,
+        "status": solution.status,
+        "runtime": solution.runtime,
+        "batches": [
+            {
+                "batch": batch.index,
+                "items": batch.items,
+                "elements": batch.elements,
+                "processing_time": batch.processtime,
+                "placement": {i: (xi, yi) for i, xi, yi in batch.placements},
+            }
+            for batch in solution.batches
+        ],
     }
+    with open(filename, "w") as f:
+        json.dump(solution_dict, f, indent=4)
 
 
 def demo_instance() -> Instance:
@@ -293,7 +322,7 @@ def load_instance_from_json(json_file: str) -> Instance:
         c=data["c"],
         Q=data["Q"],
         E_il=[[set(layer) for layer in item_layers] for item_layers in data["E_il"]],
-        n_batches=data.get("n_batches", None),
+        n_batches_org=data.get("n_batches", None),
     )
 
 
@@ -320,14 +349,10 @@ if __name__ == "__main__":
 
     sol = solve(inst, time_limit=60.0, threads=4, verbose=True)
 
-    print(f"Objective: {sol['objective']:.2f}  (gap {sol['gap']*100:.1f}%)")
-
     print("\n=== Solution ===")
-    print(f"Objective: {sol['objective']:.2f}  (gap {sol['gap']*100:.1f}%)")
-    for bat in sol["batches"]:
-        print(
-            f" Batch {bat['batch']}: items={bat['items']} "
-            f"P={bat['processing_time']:.2f}"
-        )
-        for i, (xi, yi) in bat["placement"].items():
+    print(f"Objective: {sol.objective_value:.2f}  (gap {sol.gap*100:.1f}%)")
+    for bat in sol.batches:
+        print(f" Batch {bat.index}: items={bat.items} " f"P={bat.processtime:.2f}")
+        for i, xi, yi in bat.placements:
             print(f"   item {i} at ({xi:.2f}, {yi:.2f})")
+            print(f"   elements: {bat.elements[bat.items.index(i)]}")
