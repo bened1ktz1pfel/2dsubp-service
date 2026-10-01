@@ -217,7 +217,7 @@ def extract_solution(m: gp.Model, inst: Instance) -> Solution:
         objective_value=m.ObjVal,
         objective_bound=m.ObjBound,
         gap=m.MIPGap,
-        status=m.Status,
+        status=str(m.Status),
         runtime=m.Runtime,
         batches=tuple(batches),
     )
@@ -237,6 +237,7 @@ def demo_instance() -> Instance:
         p=[5, 6, 8, 3, 10, 5, 6, 3, 7, 6, 5, 4, 8, 3, 9],
         # setup time per element
         s=[2, 3, 2, 4],
+        s_s=[1, 1, 1, 1],
         # weight per element (capacity Q = 6 -> at most 3 heavier elements together)
         c=[1, 1, 1, 1],
         Q=3,
@@ -275,13 +276,13 @@ def demo_instance() -> Instance:
             # item 14: uses {2,3} then {3} then {3}
             [{2, 3}, {3}, {3}, {3}, {0, 2, 3}, {3}, {3}, {3}, {3}, {3}, {3}],
         ],
-        n_batches=None,
+        n_batches_org=None,
     )
 
 
 def solve(
     inst: Instance, time_limit: float = 300.0, threads: int = 4, verbose: bool = False
-) -> dict:
+) -> Solution:
     m = build_gurobi_model(inst, verbose=verbose)
     m.Params.OutputFlag = 1 if verbose else 0
     m.Params.TimeLimit = time_limit

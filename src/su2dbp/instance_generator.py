@@ -25,7 +25,7 @@ def create_instance(
     e_i = []
     e_il = []
     for i in range(n):
-        item_layers = []
+        item_layers = [int, ...]
         l_curr = rng.integers(
             int(0.5 * l), l + 1
         )  # Randomly select number of layers for this item
