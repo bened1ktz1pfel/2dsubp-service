@@ -1,4 +1,5 @@
 import json
+
 import numpy as np
 
 
@@ -59,5 +60,5 @@ def write_instance_to_json(instance: dict, filename: str) -> None:
 if __name__ == "__main__":
     # Example usage
     rng = np.random.default_rng(seed=42)
-    instance = create_instance(n=20, e=8, l=50, W=25, H=25, rng=rng)
+    instance = create_instance(n=5, e=4, l=50, W=25, H=25, rng=rng)
     write_instance_to_json(instance, "tests/sample_instance.json")
