@@ -27,32 +27,11 @@ Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 """
 
 import json
-from dataclasses import dataclass
 
 import gurobipy as gp
 from gurobipy import GRB
 
-
-@dataclass
-class Instance:
-    n_items: int
-    n_elements: int
-    n_layers: int
-    w: list[float]
-    h: list[float]
-    W: float
-    H: float
-    p: list[float]
-    s: list[float]
-    s_s: list[float]
-    c: list[float]
-    Q: float
-    E_il: list[list[set[int]]]
-    n_batches: int = None
-
-    def __post_init__(self):
-        if self.n_batches is None:
-            self.n_batches = self.n_items
+from su2dbp.models import Instance
 
 
 def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
@@ -207,7 +186,8 @@ def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
     )
     m.setObjective(gp.quicksum(P[b] for b in B) + setup_cost, GRB.MINIMIZE)
 
-    m._vars = dict(x=x, z=z, y=y, P=P, u=u, u0=u0, X=X, Y=Y)
+    m._vars = {"x": x, "z": z, "y": y, "P": P, "u": u, "u0": u0, "X": X, "Y": Y}
+
     return m
 
 
@@ -333,7 +313,7 @@ def solve(
 
 
 if __name__ == "__main__":
-    inst = load_instance_from_json("tests/sample_instance.json")
+    inst = load_instance_from_json("../tests/sample_instance.json")
     print(
         f"Loaded instance with {inst.n_items} items, {inst.n_elements} elements, {inst.n_layers} layers."
     )
