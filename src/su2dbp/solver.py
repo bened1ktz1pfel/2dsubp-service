@@ -26,12 +26,11 @@ Notation (matching the paper):
 Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 """
 
-import json
-
 import gurobipy as gp
 from gurobipy import GRB
 
-from su2dbp.models import Batch, Instance, Solution
+from .models import Batch, Instance, Solution
+from .inout import load_instance_from_json
 
 
 def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
@@ -224,29 +223,6 @@ def extract_solution(m: gp.Model, inst: Instance) -> Solution:
     )
 
 
-def write_solution_to_json(solution: Solution, filename: str) -> None:
-    """Write the solution to a JSON file."""
-    solution_dict = {
-        "objective_value": solution.objective_value,
-        "objective_bound": solution.objective_bound,
-        "gap": solution.gap,
-        "status": solution.status,
-        "runtime": solution.runtime,
-        "batches": [
-            {
-                "batch": batch.index,
-                "items": batch.items,
-                "elements": batch.elements,
-                "processing_time": batch.processtime,
-                "placement": {i: (xi, yi) for i, xi, yi in batch.placements},
-            }
-            for batch in solution.batches
-        ],
-    }
-    with open(filename, "w") as f:
-        json.dump(solution_dict, f, indent=4)
-
-
 def demo_instance() -> Instance:
     return Instance(
         n_items=15,
@@ -299,30 +275,7 @@ def demo_instance() -> Instance:
             # item 14: uses {2,3} then {3} then {3}
             [{2, 3}, {3}, {3}, {3}, {0, 2, 3}, {3}, {3}, {3}, {3}, {3}, {3}],
         ],
-        # upper bound on number of batches; 4 is generous for 10 items on a 10x10 plate
-        n_batches=5,
-    )
-
-
-def load_instance_from_json(json_file: str) -> Instance:
-    with open(json_file, "r") as f:
-        data = json.load(f)
-
-    return Instance(
-        n_items=data["n_items"],
-        n_elements=data["n_elements"],
-        n_layers=data["n_layers"],
-        w=data["w"],
-        h=data["h"],
-        W=data["W"],
-        H=data["H"],
-        p=data["p"],
-        s=data["s_b"],
-        s_s=data["s_s"],
-        c=data["c"],
-        Q=data["Q"],
-        E_il=[[set(layer) for layer in item_layers] for item_layers in data["E_il"]],
-        n_batches_org=data.get("n_batches", None),
+        n_batches=None,
     )
 
 
@@ -348,6 +301,9 @@ if __name__ == "__main__":
     )
 
     sol = solve(inst, time_limit=60.0, threads=4, verbose=True)
+
+    if not sol.is_optimal:
+        print(f"Caution: not proven optimal (Status {sol.status}, Gap {sol.gap:.2%})")
 
     print("\n=== Solution ===")
     print(f"Objective: {sol.objective_value:.2f}  (gap {sol.gap*100:.1f}%)")

@@ -40,3 +40,7 @@ class Solution:
     status: str
     runtime: float
     batches: tuple[Batch, ...]
+
+    @property
+    def is_optimal(self) -> bool:
+        return round(self.gap, 5) == 0.0
