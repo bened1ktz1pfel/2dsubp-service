@@ -30,6 +30,7 @@ packages = ["src/su2dbp"]
 
 [tool.mypy]
 files = ["src"]
+check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = ["gurobipy", "gurobipy.*"]

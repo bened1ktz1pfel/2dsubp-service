@@ -29,8 +29,22 @@ Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 import gurobipy as gp
 from gurobipy import GRB
 
+from dataclasses import dataclass
+
 from .models import Batch, Instance, Solution
 from .inout import load_instance_from_json
+
+
+@dataclass(frozen=True)
+class ModelVars:
+    x: gp.tupledict
+    z: gp.tupledict
+    y: gp.tupledict
+    P: gp.tupledict
+    u: gp.tupledict
+    u0: gp.tupledict
+    X: gp.tupledict
+    Y: gp.tupledict
 
 
 def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
@@ -185,17 +199,18 @@ def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
     )
     m.setObjective(gp.quicksum(P[b] for b in B) + setup_cost, GRB.MINIMIZE)
 
-    m._vars = {"x": x, "z": z, "y": y, "P": P, "u": u, "u0": u0, "X": X, "Y": Y}
+    m._vars = ModelVars(x=x, z=z, y=y, P=P, u=u, u0=u0, X=X, Y=Y)
 
     return m
 
 
 def extract_solution(m: gp.Model, inst: Instance) -> Solution:
-    x = m._vars["x"]
-    z = m._vars["z"]
-    P = m._vars["P"]
-    X = m._vars["X"]
-    Y = m._vars["Y"]
+    x = m._vars.x
+    z = m._vars.z
+    P = m._vars.P
+    X = m._vars.X
+    Y = m._vars.Y
+
     batches: list[Batch] = []
     for b in range(inst.n_batches):
         if z[b].X < 0.5:
