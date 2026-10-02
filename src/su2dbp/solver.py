@@ -311,7 +311,7 @@ def solve(
 
 
 if __name__ == "__main__":
-    inst = load_instance_from_json("../tests/sample_instance.json")
+    inst = load_instance_from_json("../tests/fixtures/sample_instance.json")
     print(
         f"Loaded instance with {inst.n_items} items, {inst.n_elements} elements, {inst.n_layers} layers."
     )
