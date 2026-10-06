@@ -32,7 +32,7 @@ import gurobipy as gp
 from gurobipy import GRB
 
 from .inout import load_instance_from_json
-from .models import Batch, Instance, Solution
+from .models import Batch, Instance, Placement, Solution
 
 
 @dataclass(frozen=True)
@@ -225,7 +225,16 @@ def extract_solution(m: gp.Model, inst: Instance) -> Solution:
                     for i in items
                 ),
                 processtime=P[b].X,
-                placements=tuple((i, X[i].X, Y[i].X) for i in items),
+                placements=tuple(
+                    Placement(
+                        item_index=i,
+                        x=X[i].X,
+                        y=Y[i].X,
+                        width=inst.w[i],
+                        height=inst.h[i],
+                    )
+                    for i in items
+                ),
             )
         )
     return Solution(

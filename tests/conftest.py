@@ -30,7 +30,7 @@ def sample_instance() -> Instance:
 
 
 @pytest.fixture
-def make_instance() -> Callable[..., Instance]:
+def make_instance(mini: Instance) -> Callable[..., Instance]:
     """Return a function that creates an instance from a dictionary."""
 
     def _make_instance(**overrides: Any) -> Instance:

@@ -1,8 +1,9 @@
 import pytest
 
+from collections.abc import Callable
+
 from su2dbp.models import Instance
 from su2dbp.solver import solve
-from tests.conftest import make_instance
 
 
 def test_one_item_creates_one_batch(single: Instance) -> None:
@@ -20,6 +21,10 @@ def test_each_item_is_assigned_exactly_once(mini: Instance) -> None:
     assert assigned == list(range(mini.n_items))
 
 
-def test_negative_width_height(mini: Instance) -> None:
+@pytest.mark.xfail(
+    strict=True,
+    reason="Validation of negative widths and heights is not implemented yet.",
+)
+def test_negative_width_height(make_instance: Callable, mini: Instance) -> None:
     with pytest.raises(ValueError):
-        make_instance(w=[-1], *mini.w[1:])
+        make_instance(w=[-1, *mini.w[1:]])

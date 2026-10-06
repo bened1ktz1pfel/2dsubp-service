@@ -24,12 +24,21 @@ class Instance:
 
 
 @dataclass(frozen=True)
+class Placement:
+    item_index: int
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+@dataclass(frozen=True)
 class Batch:
     index: int
     items: tuple[int, ...]
     elements: tuple[tuple[int, ...], ...]
     processtime: float
-    placements: tuple[tuple[int, int, int], ...]
+    placements: tuple[Placement, ...]
 
 
 @dataclass(frozen=True)
