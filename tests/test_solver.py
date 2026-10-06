@@ -1,5 +1,5 @@
-from su2dbp.solver import solve
 from su2dbp.models import Instance
+from su2dbp.solver import solve
 
 
 def test_one_item_creates_one_batch(single: Instance) -> None:

@@ -26,13 +26,13 @@ Notation (matching the paper):
 Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 """
 
+from dataclasses import dataclass
+
 import gurobipy as gp
 from gurobipy import GRB
 
-from dataclasses import dataclass
-
-from .models import Batch, Instance, Solution
 from .inout import load_instance_from_json
+from .models import Batch, Instance, Solution
 
 
 @dataclass(frozen=True)
