@@ -334,6 +334,6 @@ if __name__ == "__main__":
     print(f"Objective: {sol.objective_value:.2f}  (gap {sol.gap*100:.1f}%)")
     for bat in sol.batches:
         print(f" Batch {bat.index}: items={bat.items} " f"P={bat.processtime:.2f}")
-        for i, xi, yi in bat.placements:
-            print(f"   item {i} at ({xi:.2f}, {yi:.2f})")
-            print(f"   elements: {bat.elements[bat.items.index(i)]}")
+        for p in bat.placements:
+            print(f"   item {p.item_index} at ({p.x:.2f}, {p.y:.2f})")
+            print(f"   elements: {bat.elements[bat.items.index(p.item_index)]}")

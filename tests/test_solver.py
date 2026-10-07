@@ -28,3 +28,10 @@ def test_each_item_is_assigned_exactly_once(mini: Instance) -> None:
 def test_negative_width_height(make_instance: Callable, mini: Instance) -> None:
     with pytest.raises(ValueError):
         make_instance(w=[-1, *mini.w[1:]])
+
+
+def test_mini_reaches_optimal_solution(mini: Instance) -> None:
+    result = solve(mini, time_limit=10)
+
+    assert result.is_optimal
+    assert result.objective_value == pytest.approx(894, rel=1e-5)
