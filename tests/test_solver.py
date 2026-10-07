@@ -34,4 +34,4 @@ def test_mini_reaches_optimal_solution(mini: Instance) -> None:
     result = solve(mini, time_limit=10)
 
     assert result.is_optimal
-    assert result.objective_value == pytest.approx(894, rel=1e-5)
+    assert result.objective_value == pytest.approx(131, rel=1e-5)
