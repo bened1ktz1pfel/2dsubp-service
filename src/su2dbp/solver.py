@@ -55,8 +55,6 @@ def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
 
     m = gp.Model("2D-BS-LMS")
 
-    M_geo = max(inst.W, inst.H) + max(max(inst.w), max(inst.h))
-
     # Variables
     x = m.addVars(I, B, vtype=GRB.BINARY, name="x")
     z = m.addVars(B, vtype=GRB.BINARY, name="z")
@@ -175,8 +173,8 @@ def build_gurobi_model(inst: Instance, verbose: bool = True) -> gp.Model:
         for j in I:
             if i == j:
                 continue
-            m.addConstr(X[i] + inst.w[i] <= X[j] + (1 - a_lr[i, j]) * M_geo)
-            m.addConstr(Y[i] + inst.h[i] <= Y[j] + (1 - b_bl[i, j]) * M_geo)
+            m.addConstr(X[i] + inst.w[i] <= X[j] + (1 - a_lr[i, j]) * inst.big_m_geo)
+            m.addConstr(Y[i] + inst.h[i] <= Y[j] + (1 - b_bl[i, j]) * inst.big_m_geo)
 
     for b in B:
         for i in I:

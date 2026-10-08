@@ -72,6 +72,10 @@ class Instance(BaseModel):
     def n_batches(self) -> int:
         return self.n_batches_org if self.n_batches_org is not None else self.n_items
 
+    @property
+    def big_m_geo(self) -> int:
+        return max(self.W, self.H) + max(max(self.w), max(self.h))
+
 
 @dataclass(frozen=True)
 class Placement:
