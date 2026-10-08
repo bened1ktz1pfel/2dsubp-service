@@ -16,7 +16,7 @@ def load_instance_from_json(json_file: str) -> Instance:
         W=data["W"],
         H=data["H"],
         p=data["p"],
-        s=data["s_b"],
+        s=data["s"],
         s_s=data["s_s"],
         c=data["c"],
         Q=data["Q"],

@@ -8,6 +8,7 @@ dependencies = [
     "gurobipy>=13.0.3",
     "numpy>=2.5.2",
     "pandas>=3.0.5",
+    "pydantic>=2.13.5",
 ]
 
 [dependency-groups]

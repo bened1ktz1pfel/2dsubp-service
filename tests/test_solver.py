@@ -21,13 +21,18 @@ def test_each_item_is_assigned_exactly_once(mini: Instance) -> None:
     assert assigned == list(range(mini.n_items))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Validation of negative widths and heights is not implemented yet.",
-)
-def test_negative_width_height(make_instance: Callable, mini: Instance) -> None:
+# @pytest.mark.xfail(
+#     strict=True,
+#     reason="Validation of negative widths and heights is not implemented yet.",
+# )
+def test_negative_width(make_instance: Callable, mini: Instance) -> None:
     with pytest.raises(ValueError):
         make_instance(w=[-1, *mini.w[1:]])
+
+
+def test_negative_height(make_instance: Callable, mini: Instance) -> None:
+    with pytest.raises(ValueError):
+        make_instance(h=[-1, *mini.h[1:]])
 
 
 def test_mini_reaches_optimal_solution(mini: Instance) -> None:

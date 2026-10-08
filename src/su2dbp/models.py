@@ -1,22 +1,36 @@
+from typing import Self
+
 from dataclasses import dataclass
 
+from pydantic import BaseModel, ConfigDict, PositiveInt, model_validator
 
-@dataclass(frozen=True)
-class Instance:
+
+class Instance(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
     n_items: int
     n_elements: int
     n_layers: int
-    w: list[float]
-    h: list[float]
-    W: float
-    H: float
-    p: list[float]
-    s: list[float]
-    s_s: list[float]
-    c: list[float]
-    Q: float
+    w: list[PositiveInt]
+    h: list[PositiveInt]
+    W: PositiveInt
+    H: PositiveInt
+    p: list[int]
+    s: list[int]
+    s_s: list[int]
+    c: list[int]
+    Q: PositiveInt
     E_il: list[list[set[int]]]
     n_batches_org: int | None = None
+
+    @model_validator(mode="after")
+    def _check_layers(self) -> Self:
+        for i, layers in enumerate(self.E_il):
+            if len(layers) != self.n_layers:
+                raise ValueError(
+                    f"Item {i} has {len(layers)} layers, expected {self.n_layers}."
+                )
+        return self
 
     @property
     def n_batches(self) -> int:

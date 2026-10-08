@@ -1,4 +1,3 @@
-import dataclasses
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -34,6 +33,6 @@ def make_instance(mini: Instance) -> Callable[..., Instance]:
     """Return a function that creates an instance from a dictionary."""
 
     def _make_instance(**overrides: Any) -> Instance:
-        return dataclasses.replace(mini, **overrides)
+        return Instance.model_validate({**mini.model_dump(), **overrides})
 
     return _make_instance

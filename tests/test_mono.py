@@ -11,7 +11,9 @@ def not_worse(solution1: Solution, solution2: Solution, rel_tol: float = 1e-5) -
 def test_more_capacity_is_not_worse(mini: Instance, make_instance: Callable) -> None:
     original_solution = solve(mini, time_limit=10)
 
-    increased_capacity_instance = make_instance(W=mini.W * 1.5, H=mini.H * 1.5)
+    increased_capacity_instance = make_instance(
+        W=int(mini.W * 1.5), H=int(mini.H * 1.5)
+    )
 
     increased_capacity_solution = solve(increased_capacity_instance, time_limit=10)
 
