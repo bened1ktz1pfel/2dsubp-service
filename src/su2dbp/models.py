@@ -1,27 +1,32 @@
+from dataclasses import dataclass
 from typing import Self
 
-from dataclasses import dataclass
-
-from pydantic import BaseModel, ConfigDict, PositiveInt, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    NonNegativeInt,
+    PositiveInt,
+    model_validator,
+)
 
 
 class Instance(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    n_items: int
-    n_elements: int
-    n_layers: int
+    n_items: PositiveInt
+    n_elements: PositiveInt
+    n_layers: PositiveInt
     w: list[PositiveInt]
     h: list[PositiveInt]
     W: PositiveInt
     H: PositiveInt
-    p: list[int]
-    s: list[int]
-    s_s: list[int]
-    c: list[int]
+    p: list[NonNegativeInt]
+    s: list[NonNegativeInt]
+    s_s: list[NonNegativeInt]
+    c: list[NonNegativeInt]
     Q: PositiveInt
-    E_il: list[list[set[int]]]
-    n_batches_org: int | None = None
+    E_il: list[list[set[NonNegativeInt]]]
+    n_batches_org: PositiveInt | None = None
 
     @model_validator(mode="after")
     def _check_layers(self) -> Self:
