@@ -58,17 +58,13 @@ class Instance(BaseModel):
             if not 0 <= e < self.n_elements
         )
         if unknown:
-            raise ValueError(
-                f"E_il verweist auf unbekannte Elemente (Item, Layer, Element): {unknown}"
-            )
+            raise ValueError(f"Unknown element (Item, Layer, Element): {unknown}")
 
         too_big = [
             i for i in range(self.n_items) if self.w[i] > self.W or self.h[i] > self.H
         ]
         if too_big:
-            raise ValueError(
-                f"Item(s) {too_big} has/have dimensions larger than the container."
-            )
+            raise ValueError(f"Item(s) {too_big} do not fit in the bin.")
 
         return self
 
