@@ -39,7 +39,7 @@ def write_solution_to_json(solution: Solution, filename: str) -> None:
                 "items": batch.items,
                 "elements": batch.elements,
                 "processing_time": batch.processtime,
-                "placement": {i: (xi, yi) for i, xi, yi in batch.placements},
+                "placement": {p.item_index: (p.x, p.y) for p in batch.placements},
             }
             for batch in solution.batches
         ],

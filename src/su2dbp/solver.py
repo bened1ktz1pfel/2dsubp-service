@@ -1,31 +1,21 @@
 """
-2D Batch Scheduling with Layered Multi-element Setups (2D-BS-LMS)
-Gurobi MILP implementation of the formulation (3)-(23) from the paper.
+2D-Set-Union-Bin-Packing (2D-SUBP) for minimizing makespan solver using Gurobi MILP.
+Variables:
+    x[i,b] = 1 if item i is assigned to batch b
+    z[b] = 1 if batch b is used
+    y[e,l,b] = 1 if element e is used in layer l of batch b
+    u[e,b] = 1 if element e is used in batch b but not in batch b-1 (setup)
+    u0[e] = 1 if element e is used in batch 0 (initial setup)
+    P[b] = processing time of batch b
 
-Notation (matching the paper):
-  Sets:
-    I : items           (indices 0..n-1)
-    B : potential batches (we use |B| = n as an upper bound)
-    E : elements
-    L : layers
-    E_il subset of E : elements required by item i in layer l
+    Y[i] = y-coordinate of item i
+    X[i] = x-coordinate of item i
+    a[i,j] = 1 if item i is placed above item j
+    b[i,j] = 1 if item i is placed to the left of item j
 
-  Variables:
-    x[i,b]   in {0,1}  - item i assigned to batch b
-    z[b]     in {0,1}  - batch b used
-    y[e,l,b] in {0,1}  - element e required in layer l of batch b
-    d[e,l,b] in {0,1}  - element e used in both layer l-1 and l (l>=1)
-    f[l,b]   in {0,1}  - some element shared between layers l-1 and l (l>=1)
-    r[l,b]   in {0,1}  - some element shared between layers l and l+1
-    u[e,b]   in {0,1}  - element e gets a setup between batches b-1 and b
-    u0[e]    in {0,1}  - element e setup for the very first used batch
-    P[b]     >= 0      - processing time of batch b
-    X[i], Y[i] >= 0    - placement coordinates of item i
-    a[i,j], b_lr[i,j] in {0,1} - relative position (left / below) for no-overlap
-
-Objective: minimize sum_b P[b] + sum_b sum_e s_e * u[e,b] + sum_e s_e * u0[e]
 """
 
+import logging
 from dataclasses import dataclass
 
 import gurobipy as gp
@@ -33,6 +23,8 @@ from gurobipy import GRB
 
 from .inout import load_instance_from_json
 from .models import Batch, Instance, Placement, Solution
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -296,7 +288,7 @@ def demo_instance() -> Instance:
             # item 13: uses {1} then {1,2} then {2}
             [{1}, {1, 2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}, {2}],
             # item 14: uses {2,3} then {3} then {3}
-            [{2, 3}, {3}, {3}, {3}, {0, 2, 3}, {3}, {3}, {3}, {3}, {3}, {3}],
+            [{2, 3}, {3}, {3}, {3}, {0, 2, 3}, {3}, {3}, {3}, {3}, {3}],
         ],
         n_batches_org=None,
     )
@@ -305,28 +297,69 @@ def demo_instance() -> Instance:
 def solve(
     inst: Instance, time_limit: float = 300.0, threads: int = 4, verbose: bool = False
 ) -> Solution:
+    """
+    Solve the 2D-Set-Union-Bin-Packing for minimizing makespan using Gurobi MILP.
+
+    Args:
+        inst: The 2D-Set-Union-Bin-Packing instance to solve; the instance is validated for consistency before solving.
+            solve does not validate the instance again.
+        time_limit: Time limit for the solver in seconds.
+        threads: Number of threads to use for the solver.
+        verbose: If True, print solver output.
+
+    Returns:
+        The solution to the 2D-Set-Union-Bin-Packing instance.
+
+    Raises:
+        RuntimeError: If no solution is found within the time limit.
+    """
+    logger.info(
+        f"Solving 2D-SUBP instance with {inst.n_items} items, {inst.n_elements} elements, {inst.n_layers} layers, "
+        f"plate size {inst.W}x{inst.H}, time limit {time_limit}s, threads {threads}, verbose={verbose}"
+    )
     m = build_gurobi_model(inst, verbose=verbose)
     m.Params.OutputFlag = 1 if verbose else 0
     m.Params.TimeLimit = time_limit
     if threads > 0:
         m.Params.Threads = threads
+    logger.info("Starting optimization...")
     m.optimize()
+    logger.info(
+        f"Optimization finished with status {m.Status}, objective {m.ObjVal}, gap {m.MIPGap:.2%}"
+    )
     if m.SolCount == 0:
         raise RuntimeError(f"No solution found (status {m.Status}).")
 
     return extract_solution(m, inst)
 
 
+def _log_result_quality(result: Solution) -> None:
+    if result.is_optimal:
+        logger.info(
+            f"Optimal solution found with objective {result.objective_value:.2f}."
+        )
+    else:
+        logger.warning(
+            f"Suboptimal solution found (status {result.status}, gap {result.gap:.2%}). "
+            f"Objective: {result.objective_value:.2f}, bound: {result.objective_bound:.2f}."
+        )
+
+
 if __name__ == "__main__":
-    inst = load_instance_from_json("../tests/fixtures/mini.json")
-    print(
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+    )
+    logging.getLogger("gurobipy").setLevel(logging.WARNING)
+    inst = load_instance_from_json("./tests/fixtures/mini.json")
+    inst = demo_instance()
+    logger.info(
         f"Loaded instance with {inst.n_items} items, {inst.n_elements} elements, {inst.n_layers} layers."
     )
 
-    sol = solve(inst, time_limit=60.0, threads=4, verbose=True)
+    sol = solve(inst, time_limit=1, threads=4, verbose=True)
 
-    if not sol.is_optimal:
-        print(f"Caution: not proven optimal (Status {sol.status}, Gap {sol.gap:.2%})")
+    _log_result_quality(sol)
 
     print("\n=== Solution ===")
     print(f"Objective: {sol.objective_value:.2f}  (gap {sol.gap*100:.1f}%)")

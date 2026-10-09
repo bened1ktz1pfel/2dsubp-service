@@ -3,6 +3,7 @@ from typing import Self
 
 from pydantic import (
     BaseModel,
+    Field,
     ConfigDict,
     NonNegativeInt,
     PositiveInt,
@@ -20,7 +21,9 @@ class Instance(BaseModel):
     h: list[PositiveInt]
     W: PositiveInt
     H: PositiveInt
-    p: list[NonNegativeInt]
+    p: list[NonNegativeInt] = Field(
+        description="Processing time for each item in minutes"
+    )
     s: list[NonNegativeInt]
     s_s: list[NonNegativeInt]
     c: list[NonNegativeInt]
